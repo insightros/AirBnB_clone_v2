@@ -1,56 +1,31 @@
 #!/usr/bin/python3
-"""Script web static package
 """
-from fabric.api import *
+This module supplies a fabric script that configures a server
+"""
+from fabric.api import local, task, put, run, env
 from datetime import datetime
-from os import path
+from os.path import basename
 
-
+env.user = "ubuntu"
 env.hosts = ['54.236.24.158', '34.229.161.195']
-env.user = 'ubuntu'
 env.key_filename = '~/.ssh/id_rsa'
 
 
+@task
 def do_deploy(archive_path):
-        """Deploy web files to server
-        """
-        try:
-                if not (path.exists(archive_path)):
-                        return False
-
-                # upload archive
-                put(archive_path, '/tmp/')
-
-                # create target dir
-                timestamp = archive_path[-18:-4]
-                run('sudo mkdir -p /data/web_static/\
-releases/web_static_{}/'.format(timestamp))
-
-                # uncompress archive and delete .tgz
-                run('sudo tar -xzf /tmp/web_static_{}.tgz -C \
-/data/web_static/releases/web_static_{}/'
-                    .format(timestamp, timestamp))
-
-                # remove archive
-                run('sudo rm /tmp/web_static_{}.tgz'.format(timestamp))
-
-                # move contents into host web_static
-                run('sudo mv /data/web_static/releases/web_static_{}/web_static/* \
-/data/web_static/releases/web_static_{}/'.format(timestamp, timestamp))
-
-                # remove extraneous web_static dir
-                run('sudo rm -rf /data/web_static/releases/\
-web_static_{}/web_static'
-                    .format(timestamp))
-
-                # delete pre-existing sym link
-                run('sudo rm -rf /data/web_static/current')
-
-                # re-establish symbolic link
-                run('sudo ln -s /data/web_static/releases/\
-web_static_{}/ /data/web_static/current'.format(timestamp))
-        except:
-                return False
-
-        # return True on success
+    """distributes ana rchive to the servers"""
+    try:
+        dn = basename(archive_path)[:-4]
+        put(archive_path, '/tmp/')
+        run(f'mkdir -p /data/web_static/releases/{dn}/')
+        run(f'tar -xzf /tmp/{dn}.tgz -C /data/web_static/releases/{dn}/')
+        run(f'rm /tmp/{dn}.tgz')
+        run(f'mv /data/web_static/releases/{dn}/web_static/* '
+            f'/data/web_static/releases/{dn}/')
+        run('rm -rf /data/web_static/releases/web_static')
+        run('rm -rf /data/web_static/current')
+        run(f'ln -s /data/web_static/releases/{dn}/ /data/web_static/current')
+        print("New version deployed!")
         return True
+    except Exception:
+        return False
